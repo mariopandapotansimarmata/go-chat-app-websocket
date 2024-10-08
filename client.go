@@ -3,8 +3,14 @@ package main
 import (
 	"encoding/json"
 	"log"
+	"time"
 
 	"github.com/gorilla/websocket"
+)
+
+var (
+	pongWait    = 10 * time.Second
+	pingIterval = (pongWait * 9) / 10
 )
 
 type ClientList map[*Client]bool
@@ -28,6 +34,13 @@ func (c *Client) ReadMessage() {
 	defer func() {
 		c.manager.removeClient(c)
 	}()
+
+	if err := c.connection.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
+		log.Println(err)
+		return
+	}
+	c.connection.SetPongHandler(c.PongHandler)
+
 	for {
 		_, payload, err := c.connection.ReadMessage()
 
@@ -53,6 +66,8 @@ func (c *Client) WriteMessage() {
 	defer func() {
 		c.manager.removeClient(c)
 	}()
+
+	ticker := time.NewTicker(pingIterval)
 	for {
 		select {
 		case message, ok := <-c.egress:
@@ -71,6 +86,18 @@ func (c *Client) WriteMessage() {
 				log.Printf("failed to send message: %v", err)
 			}
 			log.Println("message sent")
+		case <-ticker.C:
+			log.Println("ping")
+
+			if err := c.connection.WriteMessage(websocket.PingMessage, []byte(``)); err != nil {
+				log.Println("writemsg err: ", err)
+				return
+			}
 		}
 	}
+}
+
+func (c *Client) PongHandler(pongMsg string) error {
+	log.Println("pong")
+	return c.connection.SetReadDeadline(time.Now().Add(pongWait))
 }
