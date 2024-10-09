@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -43,7 +44,29 @@ func (m *Manager) setupEventHandlers() {
 }
 
 func SendMessage(event Event, c *Client) error {
-	fmt.Println(event)
+	var chatEvent SendMessageEvent
+	if err := json.Unmarshal(event.Payload, &chatEvent); err != nil {
+		return fmt.Errorf("bad payload in request: %v", err)
+	}
+	var broadMessage NewMessageEvebet
+
+	broadMessage.Sent = time.Now()
+	broadMessage.Message = chatEvent.Message
+	broadMessage.From = chatEvent.From
+
+	data, err := json.Marshal(broadMessage)
+	if err != nil {
+		return fmt.Errorf("faild to marshal broadcast message:: %v", err)
+	}
+	outgoingEvent := Event{
+		Type:    EventNewMessage,
+		Payload: data,
+	}
+
+	for client := range c.manager.ClientList {
+		client.egress <- outgoingEvent
+	}
+
 	return nil
 }
 

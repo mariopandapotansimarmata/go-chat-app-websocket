@@ -46,18 +46,42 @@
             }
         }
 
+        class SendMessageEvent {
+            constructor(message, from) {
+                this.message = message
+                this.from = from
+            }
+        }
+        class NewMessageEvent {
+            constructor(message, from, sent) {
+                this.message = message
+                this.from = from
+                this.sent = sent
+            }
+        }
+
         function routeEvent(event) {
             if (event.type === undefined) {
                 alert('no type field in the event')
             }
             switch (event.type) {
                 case "new_message":
-                    console.log("new message")
+                    const messageEvent = Object.assign(new NewMessageEvent(), event.payload)
+                    appendChatMessage(messageEvent)
                     break
                 default:
                     alert("unsupported message type")
                     break
             }
+        }
+
+        function appendChatMessage(messageEvent) {
+            var date = new Date(messageEvent.sent)
+            const formattedMsg = `${date.toLocaleString()} : ${messageEvent.message}`
+
+            textarea = document.getElementById("chatmessages")
+            textarea.innerHTML = textarea.innerHTML + "\n" + formattedMsg
+            textarea.scrollTop = textarea.scrollHeight 
         }
 
         function sendEvent(eventName, payload) {
@@ -79,7 +103,8 @@
             var newMessage = document.getElementById("message");
 
             if (newMessage != null) {
-                sendEvent("send_message", newMessage.value)
+                let outgoingEvent = new SendMessageEvent(newMessage.value, "user")
+                sendEvent("send_message", outgoingEvent)
             }
             return false
         }
@@ -108,13 +133,13 @@
         function connectWebsocket(otp) {
             if (window["WebSocket"]) {
                 console.log("supports websockets")
-                conn = new WebSocket("ws://" + document.location.host + "/ws?otp="+otp)
+                conn = new WebSocket("ws://" + document.location.host + "/ws?otp=" + otp)
 
-                conn.onopen = function(event){
+                conn.onopen = function (event) {
                     document.getElementById("connection-header").innerHTML = "Connected to Websocket : true"
                 }
 
-                conn.onclose = function(event){
+                conn.onclose = function (event) {
                     document.getElementById("connection-header").innerHTML = "Connected to Websocket : true"
 
                 }
@@ -126,7 +151,7 @@
 
                     const newevent = Object.assign(new Event, eventData)
 
-                    routeEventevent(newevent)
+                    routeEvent(newevent)
                 }
             } else alert("not support websocket")
         }
