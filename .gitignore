@@ -1,2 +1,5 @@
 # Ignore build directories
 tmp/
+gencert.bash
+server.crt
+server.key
